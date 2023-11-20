@@ -11,8 +11,6 @@ import (
 	"strings"
 
 	"github.com/jung-kurt/gofpdf"
-	_ "golang.org/x/image/bmp"
-	_ "golang.org/x/image/webp"
 )
 
 // Base unit is Pt
