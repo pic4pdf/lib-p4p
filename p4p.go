@@ -30,6 +30,14 @@ type PageSize struct {
 	UnitIsPt bool
 }
 
+func A1() PageSize {
+	return PageSize{W: 1683.78, H: 2383.94, UnitIsPt: true}
+}
+
+func A2() PageSize {
+	return PageSize{W: 1190.55, H: 1683.78, UnitIsPt: true}
+}
+
 func A3() PageSize {
 	return PageSize{W: 841.89, H: 1190.55, UnitIsPt: true}
 }
@@ -46,27 +54,19 @@ func A6() PageSize {
 	return PageSize{W: 297.64, H: 420.94, UnitIsPt: true}
 }
 
-func A2() PageSize {
-	return PageSize{W: 1190.55, H: 1683.78, UnitIsPt: true}
-}
-
-func A1() PageSize {
-	return PageSize{W: 1683.78, H: 2383.94, UnitIsPt: true}
+func Legal() PageSize {
+	return PageSize{W: 612, H: 1008, UnitIsPt: true}
 }
 
 func Letter() PageSize {
 	return PageSize{W: 612, H: 792, UnitIsPt: true}
 }
 
-func Legal() PageSize {
-	return PageSize{W: 612, H: 1008, UnitIsPt: true}
-}
-
 func Tabloid() PageSize {
 	return PageSize{W: 792, H: 1224, UnitIsPt: true}
 }
 
-// Rotates the page by 90 degrees (switching to landscape on default page sizes).
+// Rotates the page size by 90 degrees (switching to landscape on default page sizes).
 func (s PageSize) Rotate() PageSize {
 	return PageSize{W: s.H, H: s.W, UnitIsPt: s.UnitIsPt}
 }
