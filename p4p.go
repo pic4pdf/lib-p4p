@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"image"
 	"image/jpeg"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -165,11 +166,26 @@ func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
 }
 
 func (p *P4P) AddImage(img image.Image, opts ImageOptions) error {
-	var b bytes.Buffer
-	if err := jpeg.Encode(&b, img, nil); err != nil {
-		return err
+	hasAlpha := true
+	if opImg, ok := img.(interface {
+		Opaque() bool
+	}); ok {
+		hasAlpha = !opImg.Opaque()
 	}
-	p.addImage("jpeg", &b, opts)
+	var typ string
+	var b bytes.Buffer
+	if hasAlpha {
+		typ = "png"
+		if err := png.Encode(&b, img); err != nil {
+			return err
+		}
+	} else {
+		typ = "jpeg"
+		if err := jpeg.Encode(&b, img, nil); err != nil {
+			return err
+		}
+	}
+	p.addImage(typ, &b, opts)
 	return nil
 }
 
