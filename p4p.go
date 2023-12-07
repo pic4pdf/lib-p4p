@@ -98,6 +98,7 @@ type P4P struct {
 	pdf          *gofpdf.Fpdf
 	imageIndex   int
 	normPageSize PageSize
+	unit         Unit
 }
 
 func New(unit Unit, pageSize PageSize) *P4P {
@@ -124,27 +125,23 @@ func New(unit Unit, pageSize PageSize) *P4P {
 			Size:           gofpdf.SizeType{Wd: size.W, Ht: size.H},
 		}),
 		normPageSize: size,
+		unit: unit,
 	}
 }
 
-func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
-	name := "p4p_image_" + strconv.Itoa(p.imageIndex)
-	p.imageIndex++
-	p.pdf.AddPage()
-	info := p.pdf.RegisterImageOptionsReader(
-		name,
-		gofpdf.ImageOptions{
-			ImageType:             typ,
-			ReadDpi:               true,
-			AllowNegativePosition: true,
-		},
-		r,
-	)
+// Returns the page size in the units of the P4P object
+func (p *P4P) PageSize() (w, h float64) {
+	return p.normPageSize.W, p.normPageSize.H
+}
 
-	imgW, imgH := info.Width(), info.Height()
-	pgW, pgH := p.normPageSize.W, p.normPageSize.H
+// Returns layout in the units of the P4P object
+func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x, y, w, h float64) {
+	pgW, pgH := p.PageSize()
 
-	var w, h float64
+	f := float64(p.unit)
+	imgW := float64(imgWidthPx) / f
+	imgH := float64(imgHeightPx) / f
+
 	switch opts.Mode {
 	case Center:
 		w, h = imgW, imgH
@@ -156,11 +153,32 @@ func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
 		}
 	}
 
-	var x, y float64
 	switch opts.Mode {
 	case Center, Fit:
 		x, y = pgW/2-w/2, pgH/2-h/2
 	}
+
+	return
+}
+
+func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
+	name := "p4p_image_" + strconv.Itoa(p.imageIndex)
+	p.imageIndex++
+	p.pdf.AddPage()
+	info := p.pdf.RegisterImageOptionsReader(
+		name,
+		gofpdf.ImageOptions{
+			ImageType:             typ,
+			AllowNegativePosition: true,
+		},
+		r,
+	)
+
+	f := float64(p.unit)
+	// Convert image size from the units of the P4P object into pixels
+	imgWPx, imgHPx := int(info.Width() * f), int(info.Height() * f)
+
+	x, y, w, h := p.CalcImageLayout(imgWPx, imgHPx, opts)
 
 	p.pdf.Image(name, x, y, w, h, false, "", 0, "")
 }
