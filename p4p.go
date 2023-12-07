@@ -87,13 +87,18 @@ func (s PageSize) normalize(u Unit) PageSize {
 type Mode int
 
 const (
+	// Center image on page; default DPI: 72
 	Center Mode = iota
+	// Scale image to the maximum size where it remains entirely visible
 	Fit
+	// Scale image to the size where it takes up the whole page; will chop off edge parts of the image
 	Fill
 )
 
 type ImageOptions struct {
 	Mode Mode
+	// Scale the image's size before positioning; works with all layouts (default: 1)
+	Scale float64
 }
 
 type P4P struct {
@@ -127,7 +132,7 @@ func New(unit Unit, pageSize PageSize) *P4P {
 			Size:           gofpdf.SizeType{Wd: size.W, Ht: size.H},
 		}),
 		normPageSize: size,
-		unit: unit,
+		unit:         unit,
 	}
 }
 
@@ -161,6 +166,11 @@ func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x
 		}
 	}
 
+	if opts.Scale > 0 {
+		w *= opts.Scale
+		h *= opts.Scale
+	}
+
 	switch opts.Mode {
 	case Center, Fit, Fill:
 		x, y = pgW/2-w/2, pgH/2-h/2
@@ -188,12 +198,12 @@ func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
 
 	f := float64(p.unit)
 	// Convert image size from the units of the P4P object into pixels
-	imgWPx, imgHPx := int(info.Width() * f), int(info.Height() * f)
+	imgWPx, imgHPx := int(info.Width()*f), int(info.Height()*f)
 
 	x, y, w, h := p.CalcImageLayout(imgWPx, imgHPx, opts)
 
 	p.pdf.ImageOptions(name, x, y, w, h, false, gofpdf.ImageOptions{
-		ImageType:              typ,
+		ImageType:             typ,
 		AllowNegativePosition: true,
 	}, 0, "")
 }

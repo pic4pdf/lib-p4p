@@ -21,7 +21,7 @@ func TestWriteFile(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	for _, path := range imgFiles {
+	for i, path := range imgFiles {
 		f, err := os.Open(path)
 		if err != nil {
 			t.Fatal(err)
@@ -32,7 +32,8 @@ func TestWriteFile(t *testing.T) {
 			t.Fatal(err)
 		}
 		if err := p.AddImage(img, p4p.ImageOptions{
-			Mode: p4p.Center,
+			Mode:  p4p.Center,
+			Scale: []float64{0.5, 1, 1.5}[i],
 		}); err != nil {
 			t.Fatal(err)
 		}
