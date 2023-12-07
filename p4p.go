@@ -2,7 +2,6 @@ package p4p
 
 import (
 	"bytes"
-	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -174,10 +173,6 @@ func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x
 	switch opts.Mode {
 	case Center, Fit, Fill:
 		x, y = pgW/2-w/2, pgH/2-h/2
-	}
-
-	if opts.Mode == Fill {
-		fmt.Println(x, y)
 	}
 
 	return
