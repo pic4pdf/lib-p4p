@@ -37,6 +37,13 @@ func TestWriteFile(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	for _, path := range imgFiles {
+		if err := p.AddImageFile(path, p4p.ImageOptions{
+			Mode: p4p.Fill,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := p.WriteFile("test.pdf"); err != nil {
 		t.Fatal(err)
 	}

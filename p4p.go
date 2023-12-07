@@ -2,6 +2,7 @@ package p4p
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/jpeg"
 	"image/png"
@@ -88,6 +89,7 @@ type Mode int
 const (
 	Center Mode = iota
 	Fit
+	Fill
 )
 
 type ImageOptions struct {
@@ -151,11 +153,21 @@ func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x
 		} else {
 			w, h = pgH*imgW/imgH, pgH
 		}
+	case Fill:
+		if imgW/imgH < pgW/pgH {
+			w, h = pgW, pgW*imgH/imgW
+		} else {
+			w, h = pgH*imgW/imgH, pgH
+		}
 	}
 
 	switch opts.Mode {
-	case Center, Fit:
+	case Center, Fit, Fill:
 		x, y = pgW/2-w/2, pgH/2-h/2
+	}
+
+	if opts.Mode == Fill {
+		fmt.Println(x, y)
 	}
 
 	return
@@ -180,7 +192,10 @@ func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
 
 	x, y, w, h := p.CalcImageLayout(imgWPx, imgHPx, opts)
 
-	p.pdf.Image(name, x, y, w, h, false, "", 0, "")
+	p.pdf.ImageOptions(name, x, y, w, h, false, gofpdf.ImageOptions{
+		ImageType:              typ,
+		AllowNegativePosition: true,
+	}, 0, "")
 }
 
 func (p *P4P) AddImage(img image.Image, opts ImageOptions) error {
