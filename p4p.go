@@ -186,9 +186,13 @@ func (p *P4P) CalcImageCropCoords(imgWidthPx, imgHeightPx int, opts ImageOptions
 
 	// Convert to pixels (=pt)
 	f := float64(p.unit)
-	imgX1, imgY1 := f*lX/opts.Scale, f*lY/opts.Scale
-	imgX2, imgY2 := imgX1 + f*lW/opts.Scale, imgY1 + f*lH/opts.Scale
-	pgWPx, pgHPx := f*pgW/opts.Scale, f*pgH/opts.Scale
+	scale := float64(1)
+	if opts.Scale > 0 {
+		scale = opts.Scale
+	}
+	imgX1, imgY1 := f*lX/scale, f*lY/scale
+	imgX2, imgY2 := imgX1 + f*lW/scale, imgY1 + f*lH/scale
+	pgWPx, pgHPx := f*pgW/scale, f*pgH/scale
 
 	x1, y1, x2, y2 = 0, 0, imgWidthPx, imgHeightPx
 
