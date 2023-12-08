@@ -178,6 +178,40 @@ func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x
 	return
 }
 
+// Returns crop coordinates that can be passed into SubImage
+// Cropping only becomes necessary if the image is larger than the page
+func (p *P4P) CalcImageCropCoords(imgWidthPx, imgHeightPx int, opts ImageOptions) (x1, y1, x2, y2 int, mustCrop bool) {
+	pgW, pgH := p.PageSize()
+	lX, lY, lW, lH := p.CalcImageLayout(imgWidthPx, imgHeightPx, opts)
+
+	// Convert to pixels (=pt)
+	f := float64(p.unit)
+	imgX1, imgY1 := f*lX/opts.Scale, f*lY/opts.Scale
+	imgX2, imgY2 := imgX1 + f*lW/opts.Scale, imgY1 + f*lH/opts.Scale
+	pgWPx, pgHPx := f*pgW/opts.Scale, f*pgH/opts.Scale
+
+	x1, y1, x2, y2 = 0, 0, imgWidthPx, imgHeightPx
+
+	if imgX1 < 0 {
+		x1 = int(-imgX1)
+		mustCrop = true
+	}
+	if imgY1 < 0 {
+		y1 = int(-imgY1)
+		mustCrop = true
+	}
+	if imgX2 > pgWPx+imgX1 {
+		x2 = int(pgWPx - imgX1)
+		mustCrop = true
+	}
+	if imgY2 > pgHPx+imgY1 {
+		y2 = int(pgHPx - imgY1)
+		mustCrop = true
+	}
+
+	return
+}
+
 func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
 	name := "p4p_image_" + strconv.Itoa(p.imageIndex)
 	p.imageIndex++
