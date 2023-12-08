@@ -185,10 +185,10 @@ func (p *P4P) CalcImageCropCoords(imgWidthPx, imgHeightPx int, opts ImageOptions
 	lX, lY, lW, lH := p.CalcImageLayout(imgWidthPx, imgHeightPx, opts)
 
 	// Convert to pixels (=pt)
-	pxW := lW/float64(imgWidthPx)
-	pxH := lH/float64(imgHeightPx)
+	pxW := lW / float64(imgWidthPx)
+	pxH := lH / float64(imgHeightPx)
 	imgX1, imgY1 := lX/pxW, lY/pxH
-	imgX2, imgY2 := imgX1 + float64(imgWidthPx), imgY1 + float64(imgHeightPx)
+	imgX2, imgY2 := imgX1+float64(imgWidthPx), imgY1+float64(imgHeightPx)
 	pgWPx, pgHPx := pgW/pxW, pgH/pxH
 
 	x1, y1, x2, y2 = 0, 0, imgWidthPx, imgHeightPx

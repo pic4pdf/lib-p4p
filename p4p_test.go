@@ -40,7 +40,7 @@ func TestWriteFile(t *testing.T) {
 	}
 	{
 		x1, y1, x2, y2, mustCrop := p.CalcImageCropCoords(316, 317, p4p.ImageOptions{
-				Mode:  p4p.Fill,
+			Mode: p4p.Fill,
 		})
 		if !mustCrop {
 			t.Fatal("did not detect that image must be cropped")
