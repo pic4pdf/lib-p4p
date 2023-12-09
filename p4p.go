@@ -14,7 +14,7 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
-// Base unit is Pt
+// Base unit is Pt.
 type Unit float64
 
 const (
@@ -27,7 +27,7 @@ const (
 type PageSize struct {
 	W float64
 	H float64
-	// Always uses pt as page size unit if true
+	// Always uses pt as page size unit if true.
 	UnitIsPt bool
 }
 
@@ -86,17 +86,17 @@ func (s PageSize) normalize(u Unit) PageSize {
 type Mode int
 
 const (
-	// Center image on page; default DPI: 72
+	// Center image on page; default DPI: 72.
 	Center Mode = iota
-	// Scale image to the maximum size where it remains entirely visible
+	// Scale image to the maximum size where it remains entirely visible.
 	Fit
-	// Scale image to the size where it takes up the whole page; will chop off edge parts of the image
+	// Scale image to the size where it takes up the whole page; will chop off edge parts of the image.
 	Fill
 )
 
 type ImageOptions struct {
 	Mode Mode
-	// Scale the image's size before positioning; works with all layouts (default: 1)
+	// Scale the image's size before positioning; works with all layouts (default: 1).
 	Scale float64
 }
 
@@ -135,12 +135,12 @@ func New(unit Unit, pageSize PageSize) *P4P {
 	}
 }
 
-// Returns the page size in the units of the P4P object
+// Returns the page size in the units of the P4P object.
 func (p *P4P) PageSize() (w, h float64) {
 	return p.normPageSize.W, p.normPageSize.H
 }
 
-// Returns layout in the units of the P4P object
+// Returns layout in the units of the P4P object.
 func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x, y, w, h float64) {
 	pgW, pgH := p.PageSize()
 
@@ -178,13 +178,13 @@ func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x
 	return
 }
 
-// Returns crop coordinates that can be passed into SubImage
-// Cropping only becomes necessary if the image is larger than the page
+// Returns crop coordinates that can be passed into SubImage.
+// Cropping only becomes necessary if the image is larger than the page.
 func (p *P4P) CalcImageCropCoords(imgWidthPx, imgHeightPx int, opts ImageOptions) (x1, y1, x2, y2 int, mustCrop bool) {
 	pgW, pgH := p.PageSize()
 	lX, lY, lW, lH := p.CalcImageLayout(imgWidthPx, imgHeightPx, opts)
 
-	// Convert to pixels (=pt)
+	// Convert to pixels (=pt).
 	pxW := lW / float64(imgWidthPx)
 	pxH := lH / float64(imgHeightPx)
 	imgX1, imgY1 := lX/pxW, lY/pxH
@@ -227,7 +227,7 @@ func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
 	)
 
 	f := float64(p.unit)
-	// Convert image size from the units of the P4P object into pixels
+	// Convert image size from the units of the P4P object into pixels.
 	imgWPx, imgHPx := int(info.Width()*f), int(info.Height()*f)
 
 	x, y, w, h := p.CalcImageLayout(imgWPx, imgHPx, opts)
