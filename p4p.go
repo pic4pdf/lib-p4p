@@ -25,62 +25,60 @@ const (
 )
 
 type PageSize struct {
-	W float64
-	H float64
-	// Always uses pt as page size unit if true.
-	UnitIsPt bool
+	W    float64
+	H    float64
+	Unit Unit
 }
 
 func A1() PageSize {
-	return PageSize{W: 1683.78, H: 2383.94, UnitIsPt: true}
+	return PageSize{W: 1683.78, H: 2383.94, Unit: Point}
 }
 
 func A2() PageSize {
-	return PageSize{W: 1190.55, H: 1683.78, UnitIsPt: true}
+	return PageSize{W: 1190.55, H: 1683.78, Unit: Point}
 }
 
 func A3() PageSize {
-	return PageSize{W: 841.89, H: 1190.55, UnitIsPt: true}
+	return PageSize{W: 841.89, H: 1190.55, Unit: Point}
 }
 
 func A4() PageSize {
-	return PageSize{W: 595.28, H: 841.89, UnitIsPt: true}
+	return PageSize{W: 595.28, H: 841.89, Unit: Point}
 }
 
 func A5() PageSize {
-	return PageSize{W: 420.94, H: 595.28, UnitIsPt: true}
+	return PageSize{W: 420.94, H: 595.28, Unit: Point}
 }
 
 func A6() PageSize {
-	return PageSize{W: 297.64, H: 420.94, UnitIsPt: true}
+	return PageSize{W: 297.64, H: 420.94, Unit: Point}
 }
 
 func Legal() PageSize {
-	return PageSize{W: 612, H: 1008, UnitIsPt: true}
+	return PageSize{W: 612, H: 1008, Unit: Point}
 }
 
 func Letter() PageSize {
-	return PageSize{W: 612, H: 792, UnitIsPt: true}
+	return PageSize{W: 612, H: 792, Unit: Point}
 }
 
 func Tabloid() PageSize {
-	return PageSize{W: 792, H: 1224, UnitIsPt: true}
+	return PageSize{W: 792, H: 1224, Unit: Point}
 }
 
 // Rotates the page size by 90 degrees (switching to landscape on default page sizes).
 func (s PageSize) Rotate() PageSize {
-	return PageSize{W: s.H, H: s.W, UnitIsPt: s.UnitIsPt}
+	return PageSize{W: s.H, H: s.W, Unit: s.Unit}
 }
 
-func (s PageSize) normalize(u Unit) PageSize {
-	if s.UnitIsPt {
-		var res PageSize
-		f := float64(u)
-		res.W = s.W / f
-		res.H = s.H / f
-		return res
+// Converts the given page size into the same page size represented by a different unit
+func (s PageSize) Convert(to Unit) PageSize {
+	conv := float64(s.Unit) / float64(to)
+	return PageSize{
+		W:    s.W * conv,
+		H:    s.H * conv,
+		Unit: to,
 	}
-	return s
 }
 
 type Mode int
@@ -100,145 +98,119 @@ type ImageOptions struct {
 	Scale float64
 }
 
-type P4P struct {
-	pdf          *gofpdf.Fpdf
-	imageIndex   int
-	normPageSize PageSize
-	unit         Unit
-}
+// Returns an the image layout if rendered onto a the specified page in specified units.
+// Cropping coordinates are in pixels on the image. Cropping is only necessary if crop returns true.
+func Render(pageSize PageSize, unit Unit, imgWidthPx, imgHeightPx int, opts ImageOptions) (x, y, w, h float64, cropX1, cropY1, cropX2, cropY2 int, crop bool) {
+	pgSz := pageSize.Convert(unit)
+	pgW, pgH := pgSz.W, pgSz.H
 
-func New(unit Unit, pageSize PageSize) *P4P {
-	var unitStr string
-	switch unit {
-	case Point:
-		unitStr = "pt"
-	case Millimeter:
-		unitStr = "mm"
-	case Centimeter:
-		unitStr = "cm"
-	case Inch:
-		unitStr = "in"
-	default:
-		panic("unhandled case")
+	imgW := float64(imgWidthPx) / float64(unit)
+	imgH := float64(imgHeightPx) / float64(unit)
+
+	// Calculate coords.
+	{
+		switch opts.Mode {
+		case Center:
+			w, h = imgW, imgH
+		case Fit:
+			if imgW/imgH > pgW/pgH {
+				w, h = pgW, pgW*imgH/imgW
+			} else {
+				w, h = pgH*imgW/imgH, pgH
+			}
+		case Fill:
+			if imgW/imgH < pgW/pgH {
+				w, h = pgW, pgW*imgH/imgW
+			} else {
+				w, h = pgH*imgW/imgH, pgH
+			}
+		}
+
+		if opts.Scale > 0 {
+			w *= opts.Scale
+			h *= opts.Scale
+		}
+
+		switch opts.Mode {
+		case Center, Fit, Fill:
+			x, y = pgW/2-w/2, pgH/2-h/2
+		}
 	}
 
-	size := pageSize.normalize(unit)
+	// Calculate cropping coords.
+	{
+		// Size of an image pixel in units
+		pxW := w / float64(imgWidthPx)
+		pxH := h / float64(imgHeightPx)
+		// Image coords on page in image pixels
+		imgX1, imgY1 := x/pxW, y/pxH
+		imgX2, imgY2 := imgX1+float64(imgWidthPx), imgY1+float64(imgHeightPx)
+		// Page size in image pixels
+		pgWPx, pgHPx := pgW/pxW, pgH/pxH
 
-	return &P4P{
+		cropX1, cropY1, cropX2, cropY2 = 0, 0, imgWidthPx, imgHeightPx
+
+		if imgX1 < 0 {
+			cropX1 = int(-imgX1)
+			crop = true
+		}
+		if imgY1 < 0 {
+			cropY1 = int(-imgY1)
+			crop = true
+		}
+		if imgX2 > pgWPx+imgX1 {
+			cropX2 = int(pgWPx - imgX1)
+			crop = true
+		}
+		if imgY2 > pgHPx+imgY1 {
+			cropY2 = int(pgHPx - imgY1)
+			crop = true
+		}
+	}
+
+	return
+}
+
+type Generator struct {
+	pdf        *gofpdf.Fpdf
+	imageIndex int
+	pageSize   PageSize
+}
+
+func NewGenerator(pageSize PageSize) *Generator {
+	pageSizePt := pageSize.Convert(Point)
+	return &Generator{
 		pdf: gofpdf.NewCustom(&gofpdf.InitType{
 			OrientationStr: "P",
-			UnitStr:        unitStr,
-			Size:           gofpdf.SizeType{Wd: size.W, Ht: size.H},
+			UnitStr:        "pt",
+			Size:           gofpdf.SizeType{Wd: pageSizePt.W, Ht: pageSizePt.H},
 		}),
-		normPageSize: size,
-		unit:         unit,
+		pageSize: pageSizePt,
 	}
 }
 
-// Returns the page size in the units of the P4P object.
-func (p *P4P) PageSize() (w, h float64) {
-	return p.normPageSize.W, p.normPageSize.H
-}
+func (g *Generator) addImage(typ string, r io.Reader, opts ImageOptions) {
+	name := "p4p_image_" + strconv.Itoa(g.imageIndex)
+	g.imageIndex++
+	g.pdf.AddPage()
 
-// Returns layout in the units of the P4P object.
-func (p *P4P) CalcImageLayout(imgWidthPx, imgHeightPx int, opts ImageOptions) (x, y, w, h float64) {
-	pgW, pgH := p.PageSize()
-
-	f := float64(p.unit)
-	imgW := float64(imgWidthPx) / f
-	imgH := float64(imgHeightPx) / f
-
-	switch opts.Mode {
-	case Center:
-		w, h = imgW, imgH
-	case Fit:
-		if imgW/imgH > pgW/pgH {
-			w, h = pgW, pgW*imgH/imgW
-		} else {
-			w, h = pgH*imgW/imgH, pgH
-		}
-	case Fill:
-		if imgW/imgH < pgW/pgH {
-			w, h = pgW, pgW*imgH/imgW
-		} else {
-			w, h = pgH*imgW/imgH, pgH
-		}
+	opt := gofpdf.ImageOptions{
+		ImageType:             typ,
+		AllowNegativePosition: true,
 	}
 
-	if opts.Scale > 0 {
-		w *= opts.Scale
-		h *= opts.Scale
-	}
-
-	switch opts.Mode {
-	case Center, Fit, Fill:
-		x, y = pgW/2-w/2, pgH/2-h/2
-	}
-
-	return
-}
-
-// Returns crop coordinates that can be passed into SubImage.
-// Cropping only becomes necessary if the image is larger than the page.
-func (p *P4P) CalcImageCropCoords(imgWidthPx, imgHeightPx int, opts ImageOptions) (x1, y1, x2, y2 int, mustCrop bool) {
-	pgW, pgH := p.PageSize()
-	lX, lY, lW, lH := p.CalcImageLayout(imgWidthPx, imgHeightPx, opts)
-
-	// Convert to pixels (=pt).
-	pxW := lW / float64(imgWidthPx)
-	pxH := lH / float64(imgHeightPx)
-	imgX1, imgY1 := lX/pxW, lY/pxH
-	imgX2, imgY2 := imgX1+float64(imgWidthPx), imgY1+float64(imgHeightPx)
-	pgWPx, pgHPx := pgW/pxW, pgH/pxH
-
-	x1, y1, x2, y2 = 0, 0, imgWidthPx, imgHeightPx
-
-	if imgX1 < 0 {
-		x1 = int(-imgX1)
-		mustCrop = true
-	}
-	if imgY1 < 0 {
-		y1 = int(-imgY1)
-		mustCrop = true
-	}
-	if imgX2 > pgWPx+imgX1 {
-		x2 = int(pgWPx - imgX1)
-		mustCrop = true
-	}
-	if imgY2 > pgHPx+imgY1 {
-		y2 = int(pgHPx - imgY1)
-		mustCrop = true
-	}
-
-	return
-}
-
-func (p *P4P) addImage(typ string, r io.Reader, opts ImageOptions) {
-	name := "p4p_image_" + strconv.Itoa(p.imageIndex)
-	p.imageIndex++
-	p.pdf.AddPage()
-	info := p.pdf.RegisterImageOptionsReader(
+	info := g.pdf.RegisterImageOptionsReader(
 		name,
-		gofpdf.ImageOptions{
-			ImageType:             typ,
-			AllowNegativePosition: true,
-		},
+		opt,
 		r,
 	)
 
-	f := float64(p.unit)
-	// Convert image size from the units of the P4P object into pixels.
-	imgWPx, imgHPx := int(info.Width()*f), int(info.Height()*f)
+	x, y, w, h, _, _, _, _, _ := Render(g.pageSize, Point, int(info.Width()), int(info.Height()), opts)
 
-	x, y, w, h := p.CalcImageLayout(imgWPx, imgHPx, opts)
-
-	p.pdf.ImageOptions(name, x, y, w, h, false, gofpdf.ImageOptions{
-		ImageType:             typ,
-		AllowNegativePosition: true,
-	}, 0, "")
+	g.pdf.ImageOptions(name, x, y, w, h, false, opt, 0, "")
 }
 
-func (p *P4P) AddImage(img image.Image, opts ImageOptions) error {
+func (g *Generator) AddImage(img image.Image, opts ImageOptions) error {
 	hasAlpha := true
 	if opImg, ok := img.(interface {
 		Opaque() bool
@@ -258,29 +230,29 @@ func (p *P4P) AddImage(img image.Image, opts ImageOptions) error {
 			return err
 		}
 	}
-	p.addImage(typ, &b, opts)
+	g.addImage(typ, &b, opts)
 	return nil
 }
 
-func (p *P4P) AddImageFile(path string, opts ImageOptions) error {
+func (g *Generator) AddImageFile(path string, opts ImageOptions) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	p.addImage(strings.TrimPrefix(filepath.Ext(path), "."), f, opts)
+	g.addImage(strings.TrimPrefix(filepath.Ext(path), "."), f, opts)
 	return nil
 }
 
-func (p *P4P) Write(w io.Writer) error {
-	return p.pdf.Output(w)
+func (g *Generator) Write(w io.Writer) error {
+	return g.pdf.Output(w)
 }
 
-func (p *P4P) WriteFile(path string) error {
+func (g *Generator) WriteFile(path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	return p.Write(f)
+	return g.Write(f)
 }

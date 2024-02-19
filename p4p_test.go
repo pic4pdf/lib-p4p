@@ -11,11 +11,11 @@ import (
 )
 
 func TestWriteFile(t *testing.T) {
-	p := p4p.New(p4p.Millimeter, p4p.A4())
+	g := p4p.NewGenerator(p4p.A4())
 	// Images by Renee French
 	imgFiles := []string{"gophers/gopher.png", "gophers/gopher1.jpg", "gophers/gopher2.png"}
 	for _, path := range imgFiles {
-		if err := p.AddImageFile(path, p4p.ImageOptions{
+		if err := g.AddImageFile(path, p4p.ImageOptions{
 			Mode: p4p.Fit,
 		}); err != nil {
 			t.Fatal(err)
@@ -31,7 +31,7 @@ func TestWriteFile(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := p.AddImage(img, p4p.ImageOptions{
+		if err := g.AddImage(img, p4p.ImageOptions{
 			Mode:  p4p.Center,
 			Scale: []float64{0.5, 1, 1.5}[i],
 		}); err != nil {
@@ -39,24 +39,24 @@ func TestWriteFile(t *testing.T) {
 		}
 	}
 	{
-		x1, y1, x2, y2, mustCrop := p.CalcImageCropCoords(316, 317, p4p.ImageOptions{
+		_, _, _, _, x1, y1, x2, y2, crop := p4p.Render(p4p.A4(), p4p.Point, 316, 317, p4p.ImageOptions{
 			Mode: p4p.Fill,
 		})
-		if !mustCrop {
+		if !crop {
 			t.Fatal("did not detect that image must be cropped")
 		}
-		if x1 != 58 || y1 != 18 || x2 != 257 || y2 != 298 {
+		if x1 != 45 || y1 != 0 || x2 != 270 || y2 != 317 {
 			t.Fatal("wrong crop coordinates, got:", x1, y1, x2, y2)
 		}
 	}
 	for _, path := range imgFiles {
-		if err := p.AddImageFile(path, p4p.ImageOptions{
+		if err := g.AddImageFile(path, p4p.ImageOptions{
 			Mode: p4p.Fill,
 		}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := p.WriteFile("test.pdf"); err != nil {
+	if err := g.WriteFile("test.pdf"); err != nil {
 		t.Fatal(err)
 	}
 }
